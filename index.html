@@ -267,175 +267,178 @@
 
 <script>
     // Firebase Config Base URL
-    const FIREBASE_BASE_URL = "https://csc-ompi-default-rtdb.firebaseio.com";
+const FIREBASE_BASE_URL = "https://csc-ompi-default-rtdb.firebaseio.com";
 
-    var dbTasks = [
-        {date: '08/07/2026', name: 'Ramesh Das', mobile: '9876543210', service: 'PAN Card New', amount: 120, status: 'Pending', ref: 'ACK847392'},
-        {date: '05/07/2026', name: 'Ramesh Das', mobile: '9876543210', service: 'Aadhaar Card Download', amount: 50, status: 'Completed', ref: 'SUCCESS'}
-    ];
-    var dbCustomers = [{ name: 'Ramesh Das', mobile: '9876543210', avatar: '' }];
-    var dbServices = ['Aadhaar Card Download', 'PAN Card New/Correction', 'Passport Size Photo', 'Voter Card Apply', 'Online Form Fillup'];
-    var activeUserSessionMobile = null;
+var dbTasks = [];
+var dbCustomers = [];
+var dbServices = ['Aadhaar Card Download', 'PAN Card New/Correction', 'Passport Size Photo', 'Voter Card Apply', 'Online Form Fillup'];
+var activeUserSessionMobile = null;
 
-    window.onload = async function() {
-        if(localStorage.getItem('csc_tasks')) dbTasks = JSON.parse(localStorage.getItem('csc_tasks'));
-        if(localStorage.getItem('csc_customers')) dbCustomers = JSON.parse(localStorage.getItem('csc_customers'));
-        
-        renderServicesGrid();
-        // অ্যাপ লোড হওয়ার সাথে সাথে ক্লাউড ডেটাবেজ থেকে সর্বশেষ ডেটা সিঙ্ক করা হবে
-        await fetchCloudData();
-    }
+window.onload = async function() {
+    // প্রথমে লোকাল স্টোরেজ চেক করা
+    if(localStorage.getItem('csc_tasks')) dbTasks = JSON.parse(localStorage.getItem('csc_tasks'));
+    if(localStorage.getItem('csc_customers')) dbCustomers = JSON.parse(localStorage.getItem('csc_customers'));
+    
+    renderServicesGrid();
+    
+    // ক্লাউড থেকে লেটেস্ট ডেটা নামানো
+    await fetchCloudData();
+}
 
-    // ক্লাউড ডেটাবেজ থেকে তথ্য রিড করার ফাংশন
-    async function fetchCloudData() {
-        updateSyncIndicator("🟡 ক্লাউড সিঙ্ক হচ্ছে...", "#ffb300");
-        try {
-            // কাস্টমার তালিকা ক্লাউড থেকে নেওয়া
-            const custRes = await fetch(`${FIREBASE_BASE_URL}/customers.json`);
-            const custData = await custRes.json();
-            if (custData) {
-                dbCustomers = Object.values(custData);
-                localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
-            }
-
-            // টাস্ক তালিকা ক্লাউড থেকে নেওয়া
-            const taskRes = await fetch(`${FIREBASE_BASE_URL}/tasks.json`);
-            const taskData = await taskRes.json();
-            if (taskData) {
-                dbTasks = Object.values(taskData);
-                localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
-            }
-            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
-        } catch (error) {
-            console.error("Firebase sync error:", error);
-            updateSyncIndicator("🔴 অফলাইন মোড একটিভ", "#f02849");
-        }
-    }
-
-    // ক্লাউডে নির্দিষ্ট কাস্টমার ডেটা ব্যাকআপ করার ফাংশন
-    async function saveCustomerToCloud(customerObj) {
-        try {
-            await fetch(`${FIREBASE_BASE_URL}/customers/${customerObj.mobile}.json`, {
-                method: 'PUT',
-                body: JSON.stringify(customerObj),
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch (e) { console.error("Cloud backup failed", e); }
-    }
-
-    function updateSyncIndicator(text, color) {
-        const indicator = document.getElementById('syncIndicator');
-        if(indicator) {
-            indicator.innerText = text;
-            indicator.style.color = color;
-        }
-    }
-
-    function verifyCustomerLogin() {
-        var val = document.getElementById('txtPinInput').value.trim();
-        if(!val) { alert('দয়া করে মোবাইল নম্বর দিন'); return; }
-        
-        var foundCust = dbCustomers.find(c => c.mobile === val || val === "9876543210");
-        if(!foundCust && val === "9876543210") {
-            foundCust = { name: 'Ramesh Das', mobile: '9876543210', avatar: '' };
-            dbCustomers.push(foundCust);
-            saveCustomerToCloud(foundCust);
+// ক্লাউড ডেটাবেজ থেকে তথ্য রিড করার নিখুঁত ফাংশন
+async function fetchCloudData() {
+    updateSyncIndicator("🟡 ক্লাউড সিঙ্ক হচ্ছে...", "#ffb300");
+    try {
+        // কাস্টমার তালিকা ক্লাউড থেকে নেওয়া
+        const custRes = await fetch(`${FIREBASE_BASE_URL}/customers.json`);
+        const custData = await custRes.json();
+        if (custData) {
+            // যদি অবজেক্ট আকারে আসে তবে তাকে অ্যারেতে রূপান্তর করা
+            dbCustomers = Object.keys(custData).map(key => custData[key]);
+            localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
         }
 
-        if(foundCust) {
-            activeUserSessionMobile = foundCust.mobile;
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('lblCustSidebarName').innerText = foundCust.name;
-            document.getElementById('lblCustProfileName').innerText = foundCust.name;
-            document.getElementById('lblCustProfileMobile').innerText = "📱 " + foundCust.mobile;
-            
-            if(foundCust.avatar) {
-                document.getElementById('custSidebarProfileImg').src = foundCust.avatar;
-                document.getElementById('custMainProfileImg').src = foundCust.avatar;
-            } else {
-                let defaultAvatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
-                document.getElementById('custSidebarProfileImg').src = defaultAvatar;
-                document.getElementById('custMainProfileImg').src = defaultAvatar;
-            }
-
-            initCustomerPortalView();
-            populateServiceDropdown();
-            return;
+        // টাস্ক তালিকা ক্লাউড থেকে নেওয়া
+        const taskRes = await fetch(`${FIREBASE_BASE_URL}/tasks.json`);
+        const taskData = await taskRes.json();
+        if (taskData) {
+            dbTasks = Object.keys(taskData).map(key => taskData[key]);
+            localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
         }
-        alert('❌ এই নম্বরটি রেজিস্টার্ড নয়! নিচে রেজিস্ট্রেশন করুন।');
-    }
-
-    function toggleRegisterForm(show) {
-        document.getElementById('authBoxMain').style.display = show ? 'none' : 'block';
-        document.getElementById('authBoxRegister').style.display = show ? 'block' : 'none';
-    }
-
-    async function registerNewCustomer() {
-        var name = document.getElementById('regName').value.trim();
-        var mobile = document.getElementById('regMobile').value.trim();
-        if(!name || mobile.length !== 10) { alert('সঠিক তথ্য দিন (১০ ডিজিট মোবাইল)'); return; }
-        
-        var newCustomer = { name: name, mobile: mobile, avatar: '', registeredAt: new Date().toLocaleDateString('en-GB') };
-        dbCustomers.push(newCustomer);
-        localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
-        
-        updateSyncIndicator("⏳ ক্লাউডে ব্যাকআপ হচ্ছে...", "#ffb300");
-        await saveCustomerToCloud(newCustomer);
         updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+    } catch (error) {
+        console.error("Firebase sync error:", error);
+        updateSyncIndicator("🔴 অফলাইন মোড একটিভ", "#f02849");
+    }
+}
 
-        alert('🎉 কাস্টমার রেজিস্ট্রেশন সফল! এবার লগইন করুন।');
-        toggleRegisterForm(false);
-        document.getElementById('txtPinInput').value = mobile;
+// ক্লাউডে নির্দিষ্ট কাস্টমার ডেটা ব্যাকআপ করার ফাংশন
+async function saveCustomerToCloud(customerObj) {
+    try {
+        await fetch(`${FIREBASE_BASE_URL}/customers/${customerObj.mobile}.json`, {
+            method: 'PUT',
+            body: JSON.stringify(customerObj),
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (e) { console.error("Cloud backup failed", e); }
+}
+
+function updateSyncIndicator(text, color) {
+    const indicator = document.getElementById('syncIndicator');
+    if(indicator) {
+        indicator.innerText = text;
+        indicator.style.color = color;
+    }
+}
+
+function verifyCustomerLogin() {
+    var val = document.getElementById('txtPinInput').value.trim();
+    if(!val) { alert('দয়া করে মোবাইল নম্বর দিন'); return; }
+    
+    var foundCust = dbCustomers.find(c => c.mobile === val);
+    
+    // ডেমো বা ফার্স্ট টাইম টেস্টারদের জন্য অটো ব্যাকআপ মেকানিজম
+    if(!foundCust && val === "9876543210") {
+        foundCust = { name: 'Ramesh Das', mobile: '9876543210', avatar: '' };
+        dbCustomers.push(foundCust);
+        saveCustomerToCloud(foundCust);
     }
 
-    function lockSystem() {
-        activeUserSessionMobile = null;
-        document.getElementById('loginScreen').style.display = 'flex';
-    }
-
-    function showCustPanel(pId, btnId) {
-        var panels = document.getElementsByClassName('panel');
-        for(var i=0; i<panels.length; i++) panels[i].classList.remove('active');
-        document.getElementById(pId).classList.add('active');
+    if(foundCust) {
+        activeUserSessionMobile = foundCust.mobile;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('lblCustSidebarName').innerText = foundCust.name;
+        document.getElementById('lblCustProfileName').innerText = foundCust.name;
+        document.getElementById('lblCustProfileMobile').innerText = "📱 " + foundCust.mobile;
         
-        var sideBtns = document.getElementsByClassName('menu-btn');
-        for(var j=0; j<sideBtns.length; j++) sideBtns[j].classList.remove('cust-active');
-        if(btnId) document.getElementById(btnId).classList.add('cust-active');
-    }
-
-    function initCustomerPortalView() {
-        var myTasks = dbTasks.filter(t => t.mobile === activeUserSessionMobile);
-        document.getElementById('txtCustTotalTasks').innerText = myTasks.length;
-        document.getElementById('txtCustPendingTasks').innerText = myTasks.filter(t=>t.status==='Pending').length;
-        document.getElementById('txtCustCompletedTasks').innerText = myTasks.length - myTasks.filter(t=>t.status==='Pending').length;
-        
-        var liveBody = document.getElementById('tableCustTasksLive');
-        liveBody.innerHTML = '';
-        if(myTasks.length === 0) {
-            liveBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#65676b;">কোনো রানিং সার্ভিস রেকর্ড পাওয়া যায়নি</td></tr>';
+        if(foundCust.avatar) {
+            document.getElementById('custSidebarProfileImg').src = foundCust.avatar;
+            document.getElementById('custMainProfileImg').src = foundCust.avatar;
         } else {
-            myTasks.forEach(t => {
-                var tr = document.createElement('tr');
-                var statusColor = t.status === 'Pending' ? 'orange' : 'green';
-                tr.innerHTML = '<td>'+t.date+'</td><td>'+t.service+'</td><td>'+(t.ref||'প্রক্রিয়াধীন')+'</td><td style="color:'+statusColor+'; font-weight:bold;">'+t.status+'</td>';
-                liveBody.appendChild(tr);
-            });
+            let defaultAvatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+            document.getElementById('custSidebarProfileImg').src = defaultAvatar;
+            document.getElementById('custMainProfileImg').src = defaultAvatar;
         }
-    }
 
-    function renderServicesGrid() {
-        var grid = document.getElementById('divCustServicesGrid');
-        grid.innerHTML = '';
-        dbServices.forEach(s => {
-            var div = document.createElement('div');
-            div.className = 'stat-card';
-            div.innerHTML = '<h4>⚡ '+s+'</h4><p style="font-size:12px; color:#65676b; margin:0;">এই সার্ভিসটির জন্য আবেদন করতে ফাইল আপলোডার স্লট ব্যবহার করুন।</p>';
-            grid.appendChild(div);
+        initCustomerPortalView();
+        populateServiceDropdown();
+        return;
+    }
+    alert('❌ এই নম্বরটি রেজিস্টার্ড নয়! নিচে রেজিস্ট্রেশন করুন।');
+}
+
+function toggleRegisterForm(show) {
+    document.getElementById('authBoxMain').style.display = show ? 'none' : 'block';
+    document.getElementById('authBoxRegister').style.display = show ? 'block' : 'none';
+}
+
+async function registerNewCustomer() {
+    var name = document.getElementById('regName').value.trim();
+    var mobile = document.getElementById('regMobile').value.trim();
+    if(!name || mobile.length !== 10) { alert('সঠিক তথ্য দিন (১০ ডিজিট মোবাইল)'); return; }
+    
+    var newCustomer = { name: name, mobile: mobile, avatar: '', registeredAt: new Date().toLocaleDateString('en-GB') };
+    dbCustomers.push(newCustomer);
+    localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+    
+    updateSyncIndicator("⏳ ক্লাউডে ব্যাকআপ হচ্ছে...", "#ffb300");
+    await saveCustomerToCloud(newCustomer);
+    updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+
+    alert('🎉 কাস্টমার রেজিস্ট্রেশন সফল! এবার লগইন করুন।');
+    toggleRegisterForm(false);
+    document.getElementById('txtPinInput').value = mobile;
+}
+
+function lockSystem() {
+    activeUserSessionMobile = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showCustPanel(pId, btnId) {
+    var panels = document.getElementsByClassName('panel');
+    for(var i=0; i<panels.length; i++) panels[i].classList.remove('active');
+    document.getElementById(pId).classList.add('active');
+    
+    var sideBtns = document.getElementsByClassName('menu-btn');
+    for(var j=0; j<sideBtns.length; j++) sideBtns[j].classList.remove('cust-active');
+    if(btnId) document.getElementById(btnId).classList.add('cust-active');
+}
+
+function initCustomerPortalView() {
+    var myTasks = dbTasks.filter(t => t.mobile === activeUserSessionMobile);
+    document.getElementById('txtCustTotalTasks').innerText = myTasks.length;
+    document.getElementById('txtCustPendingTasks').innerText = myTasks.filter(t=>t.status==='Pending').length;
+    document.getElementById('txtCustCompletedTasks').innerText = myTasks.length - myTasks.filter(t=>t.status==='Pending').length;
+    
+    var liveBody = document.getElementById('tableCustTasksLive');
+    liveBody.innerHTML = '';
+    if(myTasks.length === 0) {
+        liveBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#65676b;">কোনো রানিং সার্ভিস রেকর্ড পাওয়া যায়নি</td></tr>';
+    } else {
+        myTasks.forEach(t => {
+            var tr = document.createElement('tr');
+            var statusColor = t.status === 'Pending' ? 'orange' : 'green';
+            tr.innerHTML = '<td>'+t.date+'</td><td>'+t.service+'</td><td>'+(t.ref||'প্রক্রিয়াধীন')+'</td><td style="color:'+statusColor+'; font-weight:bold;">'+t.status+'</td>';
+            liveBody.appendChild(tr);
         });
     }
+}
 
-    function populateServiceDropdown() {
-        var select = document.getElementById('custUploadService');
+function renderServicesGrid() {
+    var grid = document.getElementById('divCustServicesGrid');
+    grid.innerHTML = '';
+    dbServices.forEach(s => {
+        var div = document.createElement('div');
+        div.className = 'stat-card';
+        div.innerHTML = '<h4>⚡ '+s+'</h4><p style="font-size:12px; color:#65676b; margin:0;">এই সার্ভিসটির জন্য আবেদন করতে ফাইল আপলোডার স্লট ব্যবহার করুন।</p>';
+        grid.appendChild(div);
+    });
+}
+
+function populateServiceDropdown() {
+    var select = document.getElementById('custUploadService');
+    if(select) {
         select.innerHTML = '';
         dbServices.forEach(s => {
             var opt = document.createElement('option');
@@ -443,105 +446,106 @@
             select.appendChild(opt);
         });
     }
+}
 
-    function toggleCustProfileEdit(show) {
-        document.getElementById('custProfileEditForm').style.display = show ? 'block' : 'none';
-        document.getElementById('custEditName').value = document.getElementById('lblCustProfileName').innerText;
-    }
+function toggleCustProfileEdit(show) {
+    document.getElementById('custProfileEditForm').style.display = show ? 'block' : 'none';
+    document.getElementById('custEditName').value = document.getElementById('lblCustProfileName').innerText;
+}
 
-    async function saveCustomerProfileChanges() {
-        var newName = document.getElementById('custEditName').value.trim();
-        if(!newName) return;
-        var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
-        if(cust) {
-            cust.name = newName;
-            localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
-            document.getElementById('lblCustSidebarName').innerText = newName;
-            document.getElementById('lblCustProfileName').innerText = newName;
-            
-            updateSyncIndicator("⏳ ক্লাউড আপডেট হচ্ছে...", "#ffb300");
-            await saveCustomerToCloud(cust);
-            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
-
-            alert('ℹ️ নাম আপডেট করা হয়েছে!');
-            toggleCustProfileEdit(false);
-        }
-    }
-
-    function updateCustomerAvatar(input) {
-        if (input.files && input.files[0]) {
-            var reader = new FileReader();
-            reader.onload = async function(e) {
-                document.getElementById('custSidebarProfileImg').src = e.target.result;
-                document.getElementById('custMainProfileImg').src = e.target.result;
-                var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
-                if(cust) { 
-                    cust.avatar = e.target.result; 
-                    localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
-                    
-                    updateSyncIndicator("⏳ প্রোফাইল ছবি আপলোড হচ্ছে...", "#ffb300");
-                    await saveCustomerToCloud(cust);
-                    updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
-                }
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    async function submitCustomerUploadedSlots() {
-        var selectedService = document.getElementById('custUploadService').value;
+async function saveCustomerProfileChanges() {
+    var newName = document.getElementById('custEditName').value.trim();
+    if(!newName) return;
+    var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
+    if(cust) {
+        cust.name = newName;
+        localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+        document.getElementById('lblCustSidebarName').innerText = newName;
+        document.getElementById('lblCustProfileName').innerText = newName;
         
-        // টাস্ক রিয়েলটাইম জেনারেট করে ক্লাউড ও লোকালে ব্যাকআপ রাখা
-        var newTask = {
-            date: new Date().toLocaleDateString('en-GB'),
-            name: document.getElementById('lblCustProfileName').innerText,
-            mobile: activeUserSessionMobile,
-            service: selectedService,
-            status: 'Pending',
-            ref: 'REQ' + Math.floor(100000 + Math.random() * 900000)
-        };
+        updateSyncIndicator("⏳ ক্লাউড আপডেট হচ্ছে...", "#ffb300");
+        await saveCustomerToCloud(cust);
+        updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
 
-        dbTasks.push(newTask);
-        localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
-
-        try {
-            updateSyncIndicator("🚀 ডকুমেন্ট রেকর্ড পাঠানো হচ্ছে...", "#ffb300");
-            await fetch(`${FIREBASE_BASE_URL}/tasks.json`, {
-                method: 'POST',
-                body: JSON.stringify(newTask),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
-        } catch(e) { console.error(e); }
-
-        initCustomerPortalView();
-        alert('🚀 আপনার ডকুমেন্টসমূহ ' + selectedService + ' সার্ভিসের জন্য সফলভাবে আপলোড সাবমিট করা হয়েছে!');
+        alert('ℹ️ নাম আপডেট করা হয়েছে!');
+        toggleCustProfileEdit(false);
     }
+}
 
-    async function submitCustomerFeedback() {
-        var msg = document.getElementById('custFeedbackMsg').value.trim();
-        var stars = document.getElementById('custFeedbackStars').value;
-        if(!msg) { alert('মতামত লিখুন'); return; }
-        
-        var fb = {
-            mobile: activeUserSessionMobile,
-            name: document.getElementById('lblCustProfileName').innerText,
-            rating: stars,
-            feedback: msg,
-            date: new Date().toLocaleDateString('en-GB')
+function updateCustomerAvatar(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = async function(e) {
+            document.getElementById('custSidebarProfileImg').src = e.target.result;
+            document.getElementById('custMainProfileImg').src = e.target.result;
+            var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
+            if(cust) { 
+                cust.avatar = e.target.result; 
+                localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+                
+                updateSyncIndicator("⏳ প্রোফাইল ছবি আপলোড হচ্ছে...", "#ffb300");
+                await saveCustomerToCloud(cust);
+                updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+            }
         };
-
-        try {
-            await fetch(`${FIREBASE_BASE_URL}/feedbacks.json`, {
-                method: 'POST',
-                body: JSON.stringify(fb),
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch(e) { console.error(e); }
-
-        alert('❤️ আপনার রিভিউর জন্য ধন্যবাদ!');
-        document.getElementById('custFeedbackMsg').value = '';
+        reader.readAsDataURL(input.files[0]);
     }
+}
+
+async function submitCustomerUploadedSlots() {
+    var selectedService = document.getElementById('custUploadService').value;
+    
+    var newTask = {
+        date: new Date().toLocaleDateString('en-GB'),
+        name: document.getElementById('lblCustProfileName').innerText,
+        mobile: activeUserSessionMobile,
+        service: selectedService,
+        status: 'Pending',
+        ref: 'REQ' + Math.floor(100000 + Math.random() * 900000)
+    };
+
+    dbTasks.push(newTask);
+    localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
+
+    try {
+        updateSyncIndicator("🚀 ডকুমেন্ট রেকর্ড পাঠানো হচ্ছে...", "#ffb300");
+        // প্রতিটি টাস্ক ইউনিক আইডিতে পুশ করা
+        await fetch(`${FIREBASE_BASE_URL}/tasks.json`, {
+            method: 'POST',
+            body: JSON.stringify(newTask),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+    } catch(e) { console.error(e); }
+
+    initCustomerPortalView();
+    alert('🚀 আপনার ডকুমেন্টসমূহ ' + selectedService + ' সার্ভিসের জন্য সফলভাবে আপলোড সাবমিট করা হয়েছে!');
+}
+
+async function submitCustomerFeedback() {
+    var msg = document.getElementById('custFeedbackMsg').value.trim();
+    var stars = document.getElementById('custFeedbackStars').value;
+    if(!msg) { alert('মতামত লিখুন'); return; }
+    
+    var fb = {
+        mobile: activeUserSessionMobile,
+        name: document.getElementById('lblCustProfileName').innerText,
+        rating: stars,
+        feedback: msg,
+        date: new Date().toLocaleDateString('en-GB')
+    };
+
+    try {
+        await fetch(`${FIREBASE_BASE_URL}/feedbacks.json`, {
+            method: 'POST',
+            body: JSON.stringify(fb),
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch(e) { console.error(e); }
+
+    alert('❤️ আপনার রিভিউর জন্য ধন্যবাদ!');
+    document.getElementById('custFeedbackMsg').value = '';
+}
 </script>
 </body>
 </html>
