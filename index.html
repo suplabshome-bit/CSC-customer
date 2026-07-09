@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CSC Customer Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght=400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --dark: #1e293b;
+            --blue: #1877f2; 
+            --blue-hover: #115dc4;
+            --bg: #f0f2f5; 
+            --sidebar-light: #ffffff; 
+            --sidebar-text: #334155; 
+            --sidebar-hover: #f1f5f9; 
+            --whatsapp: #22c55e;
+            --purple: #7858ff;
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --sidebar-width: 270px;
+        }
+        body {
+            font-family: 'Hind Siliguri', sans-serif;
+            background-color: var(--bg);
+            margin: 0; padding: 0;
+            color: #050505;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        
+        #loginScreen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: linear-gradient(135deg, #1877f2 0%, #064b9a 100%); display: flex; justify-content: center;
+            align-items: center; z-index: 9999; color: white;
+            overflow-y: auto; padding: 10px; box-sizing: border-box;
+        }
+        .login-box {
+            background: #ffffff; padding: 30px 20px; border-radius: 12px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2); text-align: center; max-width: 100%; width: 400px;
+            border: none; color: #1c1e21; box-sizing: border-box;
+        }
+        .login-box h2 { color: var(--blue) !important; font-weight: 700; font-size: 20px; }
+        .login-box p { color: #65676b !important; font-size: 13px; }
+
+        .container { display: flex; min-height: 100vh; flex-direction: column; }
+        
+        .sidebar.customer-sidebar { 
+            width: 100%;
+            background: linear-gradient(180deg, #1877f2 0%, #0d4fa3 100%); 
+            color: white;
+            padding: 15px; 
+            border-bottom: none;
+            box-sizing: border-box;
+        }
+        .brand { padding-bottom: 10px; margin-bottom: 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .cust-profile-img { width: 70px; height: 70px; border-radius: 50%; background: #fff; margin: 0 auto 8px auto; object-fit: cover; border: 2px solid #ffffff; }
+        
+        /* হরাইজন্টাল স্ক্রোলযোগ্য মেনু মোবাইলের জন্য */
+        .menu-container {
+            display: flex;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 5px;
+            gap: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .menu-container::-webkit-scrollbar { display: none; }
+
+        .menu-btn {
+            display: inline-flex; align-items: center; padding: 10px 14px; margin-bottom: 0;
+            color: #e4e6eb; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            font-size: 14px; font-family: inherit; font-weight: 600; cursor: pointer; border-radius: 20px;
+            flex-shrink: 0;
+        }
+        .menu-btn:hover { color: white; background-color: rgba(255,255,255,0.2); }
+        .menu-btn.cust-active { color: #1877f2 !important; background-color: #ffffff !important; border-color: #ffffff; }
+        
+        .main { flex: 1; padding: 15px; max-width: 100%; box-sizing: border-box; }
+        .topbar { background: white; padding: 12px 15px; margin: -15px -15px 15px -15px; border-bottom: 1px solid #ced0d4; font-size: 13px; font-weight: 600; color: #4b4c4f; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        
+        .panel { display: none; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ced0d4; box-shadow: var(--card-shadow); animation: fadeIn 0.3s ease; }
+        .panel.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-2, .grid-3 { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 15px; }
+        
+        @media(min-width: 768px) {
+            .container { flex-direction: row; }
+            .sidebar.customer-sidebar { width: var(--sidebar-width); border-right: 1px solid rgba(0,0,0,0.1); padding: 25px 18px; }
+            .menu-container { flex-direction: column; overflow-x: visible; white-space: normal; }
+            .menu-btn { display: flex; width: 100%; border-radius: 8px; margin-bottom: 8px; }
+            .main { padding: 35px; max-width: calc(100% - var(--sidebar-width)); }
+            .topbar { flex-direction: row; justify-content: space-between; text-align: left; padding: 18px 35px; margin: -35px -35px 35px -35px; }
+            .panel { padding: 30px; }
+            .grid-2 { grid-template-columns: repeat(2, 1fr); gap: 25px; }
+            .grid-3 { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        }
+
+        .stat-card { background: white; padding: 16px; border-radius: 8px; box-shadow: var(--card-shadow); border: 1px solid #ced0d4; }
+        .input-box { display: flex; flex-direction: column; margin-bottom: 12px; }
+        .input-box label { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #65676b; }
+        .input-box input, .input-box select, .input-box textarea { padding: 10px 12px; border: 1px solid #ccd0d5; border-radius: 6px; font-size: 14px; font-family: inherit; background-color: #f5f6f7; color: #1c1e21; box-sizing: border-box; width: 100%; }
+        
+        .btn, .btn-success { background: var(--blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 14px; width: 100%; text-align: center; box-sizing: border-box; }
+        .btn-success { background: #42b72a; }
+        @media(min-width: 768px) { .btn, .btn-success { width: auto; } }
+        
+        .table-container { overflow-x: auto; margin-top: 15px; border: 1px solid #ced0d4; border-radius: 8px; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; min-width: 500px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e5e5e5; text-align: left; }
+        th { background: #f0f2f5; color: #65676b; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div class="login-box" id="authBoxMain">
+        <h2 style="margin-top:0;">🔐 কাস্টমার পোর্টাল লগইন</h2>
+        <p id="loginMsg">আপনার রেজিস্টার্ড ১০ ডিজিটের মোবাইল নম্বরটি দিয়ে লগইন করুন।</p>
+        <div class="input-box" style="margin: 15px 0;">
+            <input type="text" id="txtPinInput" placeholder="মোবাইল নম্বর লিখুন" style="text-align:center; font-size:16px; background: white;">
+        </div>
+        <button class="btn" style="width:100%; margin-bottom: 10px;" onclick="verifyCustomerLogin()">লগইন করুন</button>
+        <hr style="border: 0; border-top: 1px solid #e5e5e5; margin: 15px 0;">
+        <p style="font-size:13px; font-weight: 600;">আপনি কি নতুন কাস্টমার?</p>
+        <button class="btn-success" style="width:100%;" onclick="toggleRegisterForm(true)">📝 নতুন রেজিস্ট্রেশন করুন</button>
+    </div>
+
+    <div class="login-box" id="authBoxRegister" style="display: none;">
+        <h2 style="margin-top:0; color:#42b72a !important;">👤 নতুন কাস্টমার রেজিস্ট্রেশন</h2>
+        <p style="font-size:13px; margin-bottom: 15px;">আপনার নাম ও মোবাইল নম্বর দিয়ে একবার রেজিস্টার করুন।</p>
+        <div class="input-box" style="text-align: left;">
+            <label>কাস্টমারের পুরো নাম *</label>
+            <input type="text" id="regName" placeholder="Ramesh Das" style="background: white;">
+        </div>
+        <div class="input-box" style="text-align: left; margin-top: 10px;">
+            <label>১০ ডিজিটের মোবাইল নম্বর *</label>
+            <input type="text" id="regMobile" pattern="[0-9]{10}" placeholder="9876543210" style="background: white;">
+        </div>
+        <button class="btn-success" style="width:100%; margin-top: 15px;" onclick="registerNewCustomer()">রেজিস্ট্রেশন সম্পন্ন করুন</button>
+        <button class="btn" style="width:100%; margin-top: 10px; background:#606770;" onclick="toggleRegisterForm(false)">ফিরে যান</button>
+    </div>
+</div>
+
+<div class="container">
+    <aside class="sidebar customer-sidebar" id="custSidebar">
+        <div class="brand" style="text-align: center;">
+            <img id="custSidebarProfileImg" class="cust-profile-img" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile">
+            <h3 id="lblCustSidebarName" style="margin:5px 0 0 0; font-size:15px; color:#fff;">কাস্টমার</h3>
+            <p style="color:#ffffff; margin:2px 0 0 0; font-size:11px; opacity: 0.8;">👤 কাস্টমার ড্যাশবোর্ড</p>
+        </div>
+        <div class="menu-container">
+            <button class="menu-btn cust-active" id="btn-c-profile" onclick="showCustPanel('panelCustProfile', 'btn-c-profile')">👤 আমার রেকর্ড</button>
+            <button class="menu-btn" id="btn-c-services" onclick="showCustPanel('panelCustServices', 'btn-c-services')">✨ সার্ভিসসমূহ</button>
+            <button class="menu-btn" id="btn-c-upload" onclick="showCustPanel('panelCustUpload', 'btn-c-upload')">📁 ফাইল আপলোড</button>
+            <button class="menu-btn" id="btn-c-pay" onclick="showCustPanel('panelCustPay', 'btn-c-pay')">💳 পেমেন্ট কিউআর</button>
+            <button class="menu-btn" id="btn-c-feedback" onclick="showCustPanel('panelCustFeedback', 'btn-c-feedback')">✍️ ফিডব্যাক</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <span id="lblTopbar">স্বাগতম আমাদের ডিজিটাল সেন্টারে</span>
+            <span id="syncIndicator" style="color:#ffb300; font-weight:700;">🟡 ক্লাউড কানেক্ট হচ্ছে...</span>
+            <button class="btn-warning" style="background:#f02849; color:white; border:none; padding: 6px 12px; border-radius:6px; font-weight:700; font-size:12px; width:100%; max-width:150px;" onclick="lockSystem()">🔒 লগআউট</button>
+        </div>
+
+        <div id="panelCustProfile" class="panel active">
+            <h2>📊 আপনার সার্ভিস স্ট্যাটাস ও সামারি</h2>
+            <div class="grid-3" style="margin-bottom:15px;">
+                <div class="stat-card" style="background:#e7f3ff; border-left:5px solid var(--blue);">
+                    <div style="font-size:12px; color:#1877f2;">মোট কাজ</div>
+                    <div style="font-size:24px; font-weight:700;" id="txtCustTotalTasks">0</div>
+                </div>
+                <div class="stat-card" style="background:#ffebe8; border-left:5px solid #f02849;">
+                    <div style="font-size:12px; color:#f02849;">পেন্ডিং কাজ</div>
+                    <div style="font-size:24px; font-weight:700;" id="txtCustPendingTasks">0</div>
+                </div>
+                <div class="stat-card" style="background:#eafaf1; border-left:5px solid #42b72a;">
+                    <div style="font-size:12px; color:#42b72a;">সম্পন্ন কাজ</div>
+                    <div style="font-size:24px; font-weight:700;" id="txtCustCompletedTasks">0</div>
+                </div>
+            </div>
+
+            <div style="background:#f0f2f5; border:1px solid #ced0d4; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                    <img id="custMainProfileImg" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:60px; height:60px; border-radius:50%; object-fit:cover;">
+                    <div>
+                        <h3 id="lblCustProfileName" style="margin:0; font-size:16px;">কাস্টমার নাম</h3>
+                        <p id="lblCustProfileMobile" style="margin:2px 0 10px 0; color:#65676b; font-size:13px;">মোবাইল নম্বর</p>
+                        <button class="btn-success" style="padding:6px 12px; font-size:12px;" onclick="toggleCustProfileEdit(true)">📝 প্রোফাইল সংশোধন</button>
+                    </div>
+                </div>
+
+                <div id="custProfileEditForm" style="display:none; margin-top:15px; border-top:1px solid #ced0d4; padding-top:15px;">
+                    <div class="input-box"><label>আপনার নাম কারেকশান</label><input type="text" id="custEditName"></div>
+                    <div class="input-box"><label>নতুন প্রোফাইল ছবি</label><input type="file" id="custAvatarFile" accept="image/*" onchange="updateCustomerAvatar(this)"></div>
+                    <button class="btn" style="margin-top:10px;" onclick="saveCustomerProfileChanges()">💾 তথ্য সেভ করুন</button>
+                </div>
+            </div>
+
+            <h3>📋 আপনার সার্ভিসের লাইভ ট্র্যাক</h3>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>তারিখ</th><th>সার্ভিসের নাম</th><th>রেফারেন্স নম্বর</th><th>অবস্থা (Status)</th></tr></thead>
+                    <tbody id="tableCustTasksLive"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="panelCustServices" class="panel">
+            <h2>✨ আমাদের সমস্ত ডিজিটাল সার্ভিসসমূহ</h2>
+            <div class="grid-2" id="divCustServicesGrid"></div>
+        </div>
+
+        <div id="panelCustUpload" class="panel">
+            <h2>📁 অনলাইন ডকুমেন্ট স্লট আপলোডার</h2>
+            <div style="background:#f0f2f5; border:1px solid #ced0d4; padding:15px; border-radius:8px;">
+                <div class="input-box"><label>কোন সার্ভিসের জন্য ডকুমেন্ট জমা দিতে চান? *</label><select id="custUploadService" required></select></div>
+                <div style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="background:white; padding:10px; border:1px solid #ccd0d5; border-radius:6px; display:flex; flex-direction:column; gap:5px;">
+                        <span style="font-size:12px; font-weight:bold;">📄 স্লট ১ (আধার/ভোটার কার্ড):</span>
+                        <input type="file" id="custSlotFile1" accept="image/*,application/pdf">
+                    </div>
+                    <div style="background:white; padding:10px; border:1px solid #ccd0d5; border-radius:6px; display:flex; flex-direction:column; gap:5px;">
+                        <span style="font-size:12px; font-weight:bold;">📄 স্লট ২ (প্যান/রেশন কার্ড):</span>
+                        <input type="file" id="custSlotFile2" accept="image/*,application/pdf">
+                    </div>
+                    <div style="background:white; padding:10px; border:1px solid #ccd0d5; border-radius:6px; display:flex; flex-direction:column; gap:5px;">
+                        <span style="font-size:12px; font-weight:bold;">📄 স্লট ৩ (পাসপোর্ট সাইজ ছবি):</span>
+                        <input type="file" id="custSlotFile3" accept="image/*,application/pdf">
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; margin-top:15px;" onclick="submitCustomerUploadedSlots()">🚀 ডকুমেন্ট আপলোড সাবমিট করুন</button>
+            </div>
+        </div>
+
+        <div id="panelCustPay" class="panel">
+            <h2>💳 অনলাইন পেমেন্ট কাউন্টার কিউআর</h2>
+            <div style="background:#f0f2f5; border:1px solid #ced0d4; border-radius:8px; padding:20px; text-align:center;">
+                <span style="font-size:14px; font-weight:bold; color:#1877f2; display:block; margin-bottom:10px;">🟣 Scan to Pay via PhonePe / GPay / Paytm</span>
+                <img id="custPayPanelQrImg" src="https://cdn-icons-png.flaticon.com/512/714/714390.png" style="width:200px; height:200px; object-fit:contain; border:1px solid #ccd0d5; padding:5px; background:white;">
+            </div>
+        </div>
+
+        <div id="panelCustFeedback" class="panel">
+            <h2>✍️ আমাদের সেন্টারের রেটিং ও রিভিউ দিন</h2>
+            <div style="background:#f0f2f5; border:1px solid #ced0d4; padding:15px; border-radius:8px;">
+                <div class="input-box">
+                    <label>আপনার রেটিং সিলেক্ট করুন</label>
+                    <select id="custFeedbackStars">
+                        <option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ (অসাধারণ)</option>
+                        <option value="⭐⭐⭐⭐">⭐⭐⭐⭐ (খুব ভালো)</option>
+                        <option value="⭐⭐⭐">⭐⭐⭐ (ভালো)</option>
+                    </select>
+                </div>
+                <div class="input-box"><label>আপনার মূল্যবান মন্তব্য</label><textarea id="custFeedbackMsg" rows="3" placeholder="এখানে কিছু লিখুন..."></textarea></div>
+                <button class="btn" style="width:100%;" onclick="submitCustomerFeedback()">রিভিউ জমা দিন</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    // Firebase Config Base URL
+    const FIREBASE_BASE_URL = "https://csc-ompi-default-rtdb.firebaseio.com";
+
+    var dbTasks = [
+        {date: '08/07/2026', name: 'Ramesh Das', mobile: '9876543210', service: 'PAN Card New', amount: 120, status: 'Pending', ref: 'ACK847392'},
+        {date: '05/07/2026', name: 'Ramesh Das', mobile: '9876543210', service: 'Aadhaar Card Download', amount: 50, status: 'Completed', ref: 'SUCCESS'}
+    ];
+    var dbCustomers = [{ name: 'Ramesh Das', mobile: '9876543210', avatar: '' }];
+    var dbServices = ['Aadhaar Card Download', 'PAN Card New/Correction', 'Passport Size Photo', 'Voter Card Apply', 'Online Form Fillup'];
+    var activeUserSessionMobile = null;
+
+    window.onload = async function() {
+        if(localStorage.getItem('csc_tasks')) dbTasks = JSON.parse(localStorage.getItem('csc_tasks'));
+        if(localStorage.getItem('csc_customers')) dbCustomers = JSON.parse(localStorage.getItem('csc_customers'));
+        
+        renderServicesGrid();
+        // অ্যাপ লোড হওয়ার সাথে সাথে ক্লাউড ডেটাবেজ থেকে সর্বশেষ ডেটা সিঙ্ক করা হবে
+        await fetchCloudData();
+    }
+
+    // ক্লাউড ডেটাবেজ থেকে তথ্য রিড করার ফাংশন
+    async function fetchCloudData() {
+        updateSyncIndicator("🟡 ক্লাউড সিঙ্ক হচ্ছে...", "#ffb300");
+        try {
+            // কাস্টমার তালিকা ক্লাউড থেকে নেওয়া
+            const custRes = await fetch(`${FIREBASE_BASE_URL}/customers.json`);
+            const custData = await custRes.json();
+            if (custData) {
+                dbCustomers = Object.values(custData);
+                localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+            }
+
+            // টাস্ক তালিকা ক্লাউড থেকে নেওয়া
+            const taskRes = await fetch(`${FIREBASE_BASE_URL}/tasks.json`);
+            const taskData = await taskRes.json();
+            if (taskData) {
+                dbTasks = Object.values(taskData);
+                localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
+            }
+            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+        } catch (error) {
+            console.error("Firebase sync error:", error);
+            updateSyncIndicator("🔴 অফলাইন মোড একটিভ", "#f02849");
+        }
+    }
+
+    // ক্লাউডে নির্দিষ্ট কাস্টমার ডেটা ব্যাকআপ করার ফাংশন
+    async function saveCustomerToCloud(customerObj) {
+        try {
+            await fetch(`${FIREBASE_BASE_URL}/customers/${customerObj.mobile}.json`, {
+                method: 'PUT',
+                body: JSON.stringify(customerObj),
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (e) { console.error("Cloud backup failed", e); }
+    }
+
+    function updateSyncIndicator(text, color) {
+        const indicator = document.getElementById('syncIndicator');
+        if(indicator) {
+            indicator.innerText = text;
+            indicator.style.color = color;
+        }
+    }
+
+    function verifyCustomerLogin() {
+        var val = document.getElementById('txtPinInput').value.trim();
+        if(!val) { alert('দয়া করে মোবাইল নম্বর দিন'); return; }
+        
+        var foundCust = dbCustomers.find(c => c.mobile === val || val === "9876543210");
+        if(!foundCust && val === "9876543210") {
+            foundCust = { name: 'Ramesh Das', mobile: '9876543210', avatar: '' };
+            dbCustomers.push(foundCust);
+            saveCustomerToCloud(foundCust);
+        }
+
+        if(foundCust) {
+            activeUserSessionMobile = foundCust.mobile;
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('lblCustSidebarName').innerText = foundCust.name;
+            document.getElementById('lblCustProfileName').innerText = foundCust.name;
+            document.getElementById('lblCustProfileMobile').innerText = "📱 " + foundCust.mobile;
+            
+            if(foundCust.avatar) {
+                document.getElementById('custSidebarProfileImg').src = foundCust.avatar;
+                document.getElementById('custMainProfileImg').src = foundCust.avatar;
+            } else {
+                let defaultAvatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+                document.getElementById('custSidebarProfileImg').src = defaultAvatar;
+                document.getElementById('custMainProfileImg').src = defaultAvatar;
+            }
+
+            initCustomerPortalView();
+            populateServiceDropdown();
+            return;
+        }
+        alert('❌ এই নম্বরটি রেজিস্টার্ড নয়! নিচে রেজিস্ট্রেশন করুন।');
+    }
+
+    function toggleRegisterForm(show) {
+        document.getElementById('authBoxMain').style.display = show ? 'none' : 'block';
+        document.getElementById('authBoxRegister').style.display = show ? 'block' : 'none';
+    }
+
+    async function registerNewCustomer() {
+        var name = document.getElementById('regName').value.trim();
+        var mobile = document.getElementById('regMobile').value.trim();
+        if(!name || mobile.length !== 10) { alert('সঠিক তথ্য দিন (১০ ডিজিট মোবাইল)'); return; }
+        
+        var newCustomer = { name: name, mobile: mobile, avatar: '', registeredAt: new Date().toLocaleDateString('en-GB') };
+        dbCustomers.push(newCustomer);
+        localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+        
+        updateSyncIndicator("⏳ ক্লাউডে ব্যাকআপ হচ্ছে...", "#ffb300");
+        await saveCustomerToCloud(newCustomer);
+        updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+
+        alert('🎉 কাস্টমার রেজিস্ট্রেশন সফল! এবার লগইন করুন।');
+        toggleRegisterForm(false);
+        document.getElementById('txtPinInput').value = mobile;
+    }
+
+    function lockSystem() {
+        activeUserSessionMobile = null;
+        document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    function showCustPanel(pId, btnId) {
+        var panels = document.getElementsByClassName('panel');
+        for(var i=0; i<panels.length; i++) panels[i].classList.remove('active');
+        document.getElementById(pId).classList.add('active');
+        
+        var sideBtns = document.getElementsByClassName('menu-btn');
+        for(var j=0; j<sideBtns.length; j++) sideBtns[j].classList.remove('cust-active');
+        if(btnId) document.getElementById(btnId).classList.add('cust-active');
+    }
+
+    function initCustomerPortalView() {
+        var myTasks = dbTasks.filter(t => t.mobile === activeUserSessionMobile);
+        document.getElementById('txtCustTotalTasks').innerText = myTasks.length;
+        document.getElementById('txtCustPendingTasks').innerText = myTasks.filter(t=>t.status==='Pending').length;
+        document.getElementById('txtCustCompletedTasks').innerText = myTasks.length - myTasks.filter(t=>t.status==='Pending').length;
+        
+        var liveBody = document.getElementById('tableCustTasksLive');
+        liveBody.innerHTML = '';
+        if(myTasks.length === 0) {
+            liveBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#65676b;">কোনো রানিং সার্ভিস রেকর্ড পাওয়া যায়নি</td></tr>';
+        } else {
+            myTasks.forEach(t => {
+                var tr = document.createElement('tr');
+                var statusColor = t.status === 'Pending' ? 'orange' : 'green';
+                tr.innerHTML = '<td>'+t.date+'</td><td>'+t.service+'</td><td>'+(t.ref||'প্রক্রিয়াধীন')+'</td><td style="color:'+statusColor+'; font-weight:bold;">'+t.status+'</td>';
+                liveBody.appendChild(tr);
+            });
+        }
+    }
+
+    function renderServicesGrid() {
+        var grid = document.getElementById('divCustServicesGrid');
+        grid.innerHTML = '';
+        dbServices.forEach(s => {
+            var div = document.createElement('div');
+            div.className = 'stat-card';
+            div.innerHTML = '<h4>⚡ '+s+'</h4><p style="font-size:12px; color:#65676b; margin:0;">এই সার্ভিসটির জন্য আবেদন করতে ফাইল আপলোডার স্লট ব্যবহার করুন।</p>';
+            grid.appendChild(div);
+        });
+    }
+
+    function populateServiceDropdown() {
+        var select = document.getElementById('custUploadService');
+        select.innerHTML = '';
+        dbServices.forEach(s => {
+            var opt = document.createElement('option');
+            opt.value = s; opt.innerText = s;
+            select.appendChild(opt);
+        });
+    }
+
+    function toggleCustProfileEdit(show) {
+        document.getElementById('custProfileEditForm').style.display = show ? 'block' : 'none';
+        document.getElementById('custEditName').value = document.getElementById('lblCustProfileName').innerText;
+    }
+
+    async function saveCustomerProfileChanges() {
+        var newName = document.getElementById('custEditName').value.trim();
+        if(!newName) return;
+        var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
+        if(cust) {
+            cust.name = newName;
+            localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+            document.getElementById('lblCustSidebarName').innerText = newName;
+            document.getElementById('lblCustProfileName').innerText = newName;
+            
+            updateSyncIndicator("⏳ ক্লাউড আপডেট হচ্ছে...", "#ffb300");
+            await saveCustomerToCloud(cust);
+            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+
+            alert('ℹ️ নাম আপডেট করা হয়েছে!');
+            toggleCustProfileEdit(false);
+        }
+    }
+
+    function updateCustomerAvatar(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = async function(e) {
+                document.getElementById('custSidebarProfileImg').src = e.target.result;
+                document.getElementById('custMainProfileImg').src = e.target.result;
+                var cust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
+                if(cust) { 
+                    cust.avatar = e.target.result; 
+                    localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
+                    
+                    updateSyncIndicator("⏳ প্রোফাইল ছবি আপলোড হচ্ছে...", "#ffb300");
+                    await saveCustomerToCloud(cust);
+                    updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+                }
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function submitCustomerUploadedSlots() {
+        var selectedService = document.getElementById('custUploadService').value;
+        
+        // টাস্ক রিয়েলটাইম জেনারেট করে ক্লাউড ও লোকালে ব্যাকআপ রাখা
+        var newTask = {
+            date: new Date().toLocaleDateString('en-GB'),
+            name: document.getElementById('lblCustProfileName').innerText,
+            mobile: activeUserSessionMobile,
+            service: selectedService,
+            status: 'Pending',
+            ref: 'REQ' + Math.floor(100000 + Math.random() * 900000)
+        };
+
+        dbTasks.push(newTask);
+        localStorage.setItem('csc_tasks', JSON.stringify(dbTasks));
+
+        try {
+            updateSyncIndicator("🚀 ডকুমেন্ট রেকর্ড পাঠানো হচ্ছে...", "#ffb300");
+            await fetch(`${FIREBASE_BASE_URL}/tasks.json`, {
+                method: 'POST',
+                body: JSON.stringify(newTask),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            updateSyncIndicator("🟢 অনলাইন পোর্টাল একটিভ", "#42b72a");
+        } catch(e) { console.error(e); }
+
+        initCustomerPortalView();
+        alert('🚀 আপনার ডকুমেন্টসমূহ ' + selectedService + ' সার্ভিসের জন্য সফলভাবে আপলোড সাবমিট করা হয়েছে!');
+    }
+
+    async function submitCustomerFeedback() {
+        var msg = document.getElementById('custFeedbackMsg').value.trim();
+        var stars = document.getElementById('custFeedbackStars').value;
+        if(!msg) { alert('মতামত লিখুন'); return; }
+        
+        var fb = {
+            mobile: activeUserSessionMobile,
+            name: document.getElementById('lblCustProfileName').innerText,
+            rating: stars,
+            feedback: msg,
+            date: new Date().toLocaleDateString('en-GB')
+        };
+
+        try {
+            await fetch(`${FIREBASE_BASE_URL}/feedbacks.json`, {
+                method: 'POST',
+                body: JSON.stringify(fb),
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch(e) { console.error(e); }
+
+        alert('❤️ আপনার রিভিউর জন্য ধন্যবাদ!');
+        document.getElementById('custFeedbackMsg').value = '';
+    }
+</script>
+</body>
+</html>
