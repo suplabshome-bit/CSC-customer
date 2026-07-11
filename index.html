@@ -58,7 +58,6 @@
         .brand { padding-bottom: 10px; margin-bottom: 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .cust-profile-img { width: 70px; height: 70px; border-radius: 50%; background: #fff; margin: 0 auto 8px auto; object-fit: cover; border: 2px solid #ffffff; }
         
-        /* হরাইজন্টাল স্ক্রোলযোগ্য মেনু মোবাইলের জন্য */
         .menu-container {
             display: flex;
             overflow-x: auto;
@@ -107,6 +106,7 @@
         
         .btn, .btn-success { background: var(--blue); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 14px; width: 100%; text-align: center; box-sizing: border-box; }
         .btn-success { background: #42b72a; }
+        .btn-primary { background: #7858ff; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 14px; }
         @media(min-width: 768px) { .btn, .btn-success { width: auto; } }
         
         .table-container { overflow-x: auto; margin-top: 15px; border: 1px solid #ced0d4; border-radius: 8px; -webkit-overflow-scrolling: touch; }
@@ -170,7 +170,11 @@
         </div>
 
         <div id="panelCustProfile" class="panel active">
-            <h2>📊 আপনার সার্ভিস স্ট্যাটাস ও সামারি</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <h2>📊 আপনার সার্ভিস স্ট্যাটাস ও সামারি</h2>
+                <button class="btn-primary" onclick="syncCurrentCustomerToCloud()">📤 ক্লাউডে ডাটা পাঠান (Sync Live)</button>
+            </div>
+            
             <div class="grid-3" style="margin-bottom:15px;">
                 <div class="stat-card" style="background:#e7f3ff; border-left:5px solid var(--blue);">
                     <div style="font-size:12px; color:#1877f2;">মোট কাজ</div>
@@ -210,6 +214,9 @@
                     <tbody id="tableCustTasksLive"></tbody>
                 </table>
             </div>
+            
+            <h3 style="margin-top: 30px;">👥 লাইভ ডাটাবেজ কাস্টমার লিস্ট (Firebase Live)</h3>
+            <div id="customerList" style="background: white; border: 1px solid #ced0d4; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto;">ডাটা লোড হচ্ছে...</div>
         </div>
 
         <div id="panelCustServices" class="panel">
@@ -265,8 +272,24 @@
     </main>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
 <script>
-    // Firebase Config Base URL
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "AIzaSyA4_jLXBl2_BDYXK6PXk2cDOroIVjDf6lw",
+    authDomain: "csc-ompi.firebaseapp.com",
+    databaseURL: "https://csc-ompi-default-rtdb.firebaseio.com",
+    projectId: "csc-ompi",
+    storageBucket: "csc-ompi.firebasestorage.app",
+    messagingSenderId: "180785739388",
+    appId: "1:180785739388:web:884ac58d228d128713bbf9",
+    measurementId: "G-KYKN80QCH9"
+};
+  
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
 const FIREBASE_BASE_URL = "https://csc-ompi-default-rtdb.firebaseio.com";
 
 var dbTasks = [];
@@ -275,30 +298,25 @@ var dbServices = ['Aadhaar Card Download', 'PAN Card New/Correction', 'Passport 
 var activeUserSessionMobile = null;
 
 window.onload = async function() {
-    // প্রথমে লোকাল স্টোরেজ চেক করা
     if(localStorage.getItem('csc_tasks')) dbTasks = JSON.parse(localStorage.getItem('csc_tasks'));
     if(localStorage.getItem('csc_customers')) dbCustomers = JSON.parse(localStorage.getItem('csc_customers'));
     
     renderServicesGrid();
-    
-    // ক্লাউড থেকে লেটেস্ট ডেটা নামানো
     await fetchCloudData();
+    initRealtimeCustomerListener();
 }
 
-// ক্লাউড ডেটাবেজ থেকে তথ্য রিড করার নিখুঁত ফাংশন
+// ক্লাউড থেকে ডাটা ফেচ করা
 async function fetchCloudData() {
     updateSyncIndicator("🟡 ক্লাউড সিঙ্ক হচ্ছে...", "#ffb300");
     try {
-        // কাস্টমার তালিকা ক্লাউড থেকে নেওয়া
-        const custRes = await fetch(`${FIREBASE_BASE_URL}/customers.json`);
+        const custRes = await fetch(`${FIREBASE_BASE_URL}/csc_customers.json`);
         const custData = await custRes.json();
         if (custData) {
-            // যদি অবজেক্ট আকারে আসে তবে তাকে অ্যারেতে রূপান্তর করা
             dbCustomers = Object.keys(custData).map(key => custData[key]);
             localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
         }
 
-        // টাস্ক তালিকা ক্লাউড থেকে নেওয়া
         const taskRes = await fetch(`${FIREBASE_BASE_URL}/tasks.json`);
         const taskData = await taskRes.json();
         if (taskData) {
@@ -312,15 +330,37 @@ async function fetchCloudData() {
     }
 }
 
-// ক্লাউডে নির্দিষ্ট কাস্টমার ডেটা ব্যাকআপ করার ফাংশন
+// নির্দিষ্ট কাস্টমার ক্লাউডে সেভ করার ফাংশন
 async function saveCustomerToCloud(customerObj) {
     try {
-        await fetch(`${FIREBASE_BASE_URL}/customers/${customerObj.mobile}.json`, {
+        // ফোন ফিল্ড অ্যাড করা হলো নিচের রিয়েলটাইম তালিকার সাথে মিল রাখার জন্য
+        customerObj.phone = customerObj.mobile; 
+        
+        await fetch(`${FIREBASE_BASE_URL}/csc_customers/${customerObj.mobile}.json`, {
             method: 'PUT',
             body: JSON.stringify(customerObj),
             headers: { 'Content-Type': 'application/json' }
         });
-    } catch (e) { console.error("Cloud backup failed", e); }
+    } catch (e) { 
+        console.error("Cloud backup failed", e); 
+    }
+}
+
+// বাটন ক্লিকের জন্য ডেডিকেটেড এক্সপ্লিসিট সেন্ড ফাংশন
+async function syncCurrentCustomerToCloud() {
+    if(!activeUserSessionMobile) {
+        alert("দয়া করে প্রথমে লগইন করুন!");
+        return;
+    }
+    var currentCust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
+    if(currentCust) {
+        updateSyncIndicator("⏳ ক্লাউডে ডাটা আপলোড হচ্ছে...", "#ffb300");
+        await saveCustomerToCloud(currentCust);
+        updateSyncIndicator("🟢 ডাটা সফলভাবে পাঠানো হয়েছে", "#42b72a");
+        alert("🚀 আপনার ডাটা সফলভাবে আপলোড হয়েছে! এটি এখন suplabshome-bit.github.io/CSC-Ompinagar/ লিঙ্কে লাইভ দেখা যাবে।");
+    } else {
+        alert("কোনো কাস্টমার ডাটা পাওয়া যায়নি।");
+    }
 }
 
 function updateSyncIndicator(text, color) {
@@ -337,9 +377,8 @@ function verifyCustomerLogin() {
     
     var foundCust = dbCustomers.find(c => c.mobile === val);
     
-    // ডেমো বা ফার্স্ট টাইম টেস্টারদের জন্য অটো ব্যাকআপ মেকানিজম
     if(!foundCust && val === "9876543210") {
-        foundCust = { name: 'Ramesh Das', mobile: '9876543210', avatar: '' };
+        foundCust = { name: 'Ramesh Das', mobile: '9876543210', phone: '9876543210', avatar: '' };
         dbCustomers.push(foundCust);
         saveCustomerToCloud(foundCust);
     }
@@ -377,7 +416,7 @@ async function registerNewCustomer() {
     var mobile = document.getElementById('regMobile').value.trim();
     if(!name || mobile.length !== 10) { alert('সঠিক তথ্য দিন (১০ ডিজিট মোবাইল)'); return; }
     
-    var newCustomer = { name: name, mobile: mobile, avatar: '', registeredAt: new Date().toLocaleDateString('en-GB') };
+    var newCustomer = { name: name, mobile: mobile, phone: mobile, avatar: '', registeredAt: new Date().toLocaleDateString('en-GB') };
     dbCustomers.push(newCustomer);
     localStorage.setItem('csc_customers', JSON.stringify(dbCustomers));
     
@@ -509,7 +548,6 @@ async function submitCustomerUploadedSlots() {
 
     try {
         updateSyncIndicator("🚀 ডকুমেন্ট রেকর্ড পাঠানো হচ্ছে...", "#ffb300");
-        // প্রতিটি টাস্ক ইউনিক আইডিতে পুশ করা
         await fetch(`${FIREBASE_BASE_URL}/tasks.json`, {
             method: 'POST',
             body: JSON.stringify(newTask),
@@ -546,52 +584,36 @@ async function submitCustomerFeedback() {
     alert('❤️ আপনার রিভিউর জন্য ধন্যবাদ!');
     document.getElementById('custFeedbackMsg').value = '';
 }
-</script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<div id="customerList">ডাটা লোড হচ্ছে...</div>
-
-<script>
-  // একই Firebase Config এখানেও বসাতে হবে
- const firebaseConfig = {
-  apiKey: "AIzaSyA4_jLXBl2_BDYXK6PXk2cDOroIVjDf6lw",
-  authDomain: "csc-ompi.firebaseapp.com",
-  databaseURL: "https://csc-ompi-default-rtdb.firebaseio.com",
-  projectId: "csc-ompi",
-  storageBucket: "csc-ompi.firebasestorage.app",
-  messagingSenderId: "180785739388",
-  appId: "1:180785739388:web:884ac58d228d128713bbf9",
-  measurementId: "G-KYKN80QCH9"
-};
-  
-  firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
-
-  // ফায়ারবেস থেকে রিয়েল-টাইমে ডাটা রিড করা
-  database.ref('csc_customers').on('value', (snapshot) => {
-    const data = snapshot.val();
-    const listContainer = document.getElementById('customerList');
-    listContainer.innerHTML = ''; // আগের ডাটা পরিষ্কার করা
-
-    if (data) {
-      // লুপ চালিয়ে সব ডাটা বের করা
-      Object.keys(data).forEach((key) => {
-        const customer = data[key];
+// ফায়ারবেস রিয়েল-টাইম ডাটা লিসেনার
+function initRealtimeCustomerListener() {
+    database.ref('csc_customers').on('value', (snapshot) => {
+        const data = snapshot.val();
+        const listContainer = document.getElementById('customerList');
+        if(!listContainer) return;
         
-        // স্ক্রিনে ডাটা দেখানোর জন্য HTML তৈরি করা
-        const item = document.createElement('div');
-        item.style.border = "1px solid #ccc";
-        item.style.padding = "10px";
-        item.style.margin = "5px 0";
-        item.innerHTML = `<strong>নাম:</strong> ${customer.name} | <strong>মোবাইল:</strong> ${customer.phone}`;
-        
-        listContainer.appendChild(item);
-      });
-    } else {
-      listContainer.innerHTML = 'কোনো কাস্টমার ডাটা পাওয়া যায়নি।';
-    }
-  });
+        listContainer.innerHTML = ''; 
+
+        if (data) {
+            Object.keys(data).forEach((key) => {
+                const customer = data[key];
+                const item = document.createElement('div');
+                item.style.borderBottom = "1px solid #eee";
+                item.style.padding = "8px 0";
+                item.style.fontSize = "13px";
+                
+                // অবজেক্ট স্ট্রাকচার সেফটি চেক
+                let displayPhone = customer.phone || customer.mobile || "N/A";
+                let displayName = customer.name || "Unknown";
+                
+                item.innerHTML = `👤 <strong>নাম:</strong> ${displayName} | 📱 <strong>মোবাইল:</strong> ${displayPhone}`;
+                listContainer.appendChild(item);
+            });
+        } else {
+            listContainer.innerHTML = 'কোনো কাস্টমার ডাটা পাওয়া যায়নি।';
+        }
+    });
+}
 </script>
 </body>
 </html>
