@@ -172,7 +172,8 @@
         <div id="panelCustProfile" class="panel active">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
                 <h2>📊 আপনার সার্ভিস স্ট্যাটাস ও সামারি</h2>
-                <button class="btn-primary" onclick="syncCurrentCustomerToCloud()">📤 ক্লাউডে ডাটা পাঠান (Sync Live)</button>
+                <!-- ডাটা ফায়ারবেস ও গিটহাবে পাঠানোর মূল বাটন -->
+                <button class="btn-primary" onclick="syncCurrentCustomerToCloud()">🚀 কাস্টমার ডাটা আপলোড করুন</button>
             </div>
             
             <div class="grid-3" style="margin-bottom:15px;">
@@ -215,7 +216,8 @@
                 </table>
             </div>
             
-            <h3 style="margin-top: 30px;">👥 লাইভ ডাটাবেজ কাস্টমার লিস্ট (Firebase Live)</h3>
+            <!-- পেজের ভেতরেই লাইভ ডাটাবেজ দেখার সেকশন -->
+            <h3 style="margin-top: 30px;">👥 লাইভ কাস্টমার ডাটাবেজ লিস্ট (Firebase Realtime)</h3>
             <div id="customerList" style="background: white; border: 1px solid #ced0d4; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto;">ডাটা লোড হচ্ছে...</div>
         </div>
 
@@ -272,11 +274,12 @@
     </main>
 </div>
 
+<!-- Firebase SDK Scripts -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-// Firebase Config
+// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyA4_jLXBl2_BDYXK6PXk2cDOroIVjDf6lw",
     authDomain: "csc-ompi.firebaseapp.com",
@@ -306,7 +309,7 @@ window.onload = async function() {
     initRealtimeCustomerListener();
 }
 
-// ক্লাউড থেকে ডাটা ফেচ করা
+// REST API দিয়ে ডেটা রিড করা
 async function fetchCloudData() {
     updateSyncIndicator("🟡 ক্লাউড সিঙ্ক হচ্ছে...", "#ffb300");
     try {
@@ -330,23 +333,24 @@ async function fetchCloudData() {
     }
 }
 
-// নির্দিষ্ট কাস্টমার ক্লাউডে সেভ করার ফাংশন
-async function saveCustomerToCloud(customerObj) {
-    try {
-        // ফোন ফিল্ড অ্যাড করা হলো নিচের রিয়েলটাইম তালিকার সাথে মিল রাখার জন্য
+// ফায়ারবেস অফিসিয়াল SDK ব্যবহার করে রিয়েল-টাইম আপলোড করা
+function saveCustomerToCloud(customerObj) {
+    return new Promise((resolve, reject) => {
+        // গিটহাব পেজের রিকোয়ারমেন্ট অনুযায়ী phone ফিল্ড যোগ করা হলো
         customerObj.phone = customerObj.mobile; 
         
-        await fetch(`${FIREBASE_BASE_URL}/csc_customers/${customerObj.mobile}.json`, {
-            method: 'PUT',
-            body: JSON.stringify(customerObj),
-            headers: { 'Content-Type': 'application/json' }
+        database.ref('csc_customers/' + customerObj.mobile).set(customerObj, (error) => {
+            if (error) {
+                console.error("Cloud backup failed", error);
+                reject(error);
+            } else {
+                resolve();
+            }
         });
-    } catch (e) { 
-        console.error("Cloud backup failed", e); 
-    }
+    });
 }
 
-// বাটন ক্লিকের জন্য ডেডিকেটেড এক্সপ্লিসিট সেন্ড ফাংশন
+// বাটন ক্লিকের জন্য ডেডিকেটেড সিঙ্ক ফাংশন
 async function syncCurrentCustomerToCloud() {
     if(!activeUserSessionMobile) {
         alert("দয়া করে প্রথমে লগইন করুন!");
@@ -355,9 +359,13 @@ async function syncCurrentCustomerToCloud() {
     var currentCust = dbCustomers.find(c => c.mobile === activeUserSessionMobile);
     if(currentCust) {
         updateSyncIndicator("⏳ ক্লাউডে ডাটা আপলোড হচ্ছে...", "#ffb300");
-        await saveCustomerToCloud(currentCust);
-        updateSyncIndicator("🟢 ডাটা সফলভাবে পাঠানো হয়েছে", "#42b72a");
-        alert("🚀 আপনার ডাটা সফলভাবে আপলোড হয়েছে! এটি এখন suplabshome-bit.github.io/CSC-Ompinagar/ লিঙ্কে লাইভ দেখা যাবে।");
+        try {
+            await saveCustomerToCloud(currentCust);
+            updateSyncIndicator("🟢 ডাটা সফলভাবে পাঠানো হয়েছে", "#42b72a");
+            alert("🚀 আপনার ডাটা সফলভাবে আপলোড হয়েছে! এটি এখন suplabshome-bit.github.io/CSC-Ompinagar/ লিঙ্কে লাইভ দেখা যাবে।");
+        } catch (e) {
+            alert("❌ আপলোড ব্যর্থ হয়েছে! আবার চেষ্টা করুন।");
+        }
     } else {
         alert("কোনো কাস্টমার ডাটা পাওয়া যায়নি।");
     }
@@ -585,7 +593,7 @@ async function submitCustomerFeedback() {
     document.getElementById('custFeedbackMsg').value = '';
 }
 
-// ফায়ারবেস রিয়েল-টাইম ডাটা লিসেনার
+// ফায়ারবেস অফিশিয়াল SDK রিয়েল-টাইম ডাটা লিসেনার
 function initRealtimeCustomerListener() {
     database.ref('csc_customers').on('value', (snapshot) => {
         const data = snapshot.val();
@@ -602,7 +610,6 @@ function initRealtimeCustomerListener() {
                 item.style.padding = "8px 0";
                 item.style.fontSize = "13px";
                 
-                // অবজেক্ট স্ট্রাকচার সেফটি চেক
                 let displayPhone = customer.phone || customer.mobile || "N/A";
                 let displayName = customer.name || "Unknown";
                 
